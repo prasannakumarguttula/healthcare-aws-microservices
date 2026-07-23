@@ -12,27 +12,8 @@ const S3_BUCKET = process.env.S3_BUCKET || 'healthcare-records-local';
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    console.log(JSON.stringify({
-      service: SERVICE,
-      method: req.method,
-      path: req.path,
-      status: res.statusCode,
-      ms: Date.now() - start,
-    }));
-  });
-  next();
-});
-
 app.get('/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    service: SERVICE,
-    s3Bucket: S3_BUCKET,
-    timestamp: new Date().toISOString(),
-  });
+  res.json({ status: 'ok', service: SERVICE, s3Bucket: S3_BUCKET, timestamp: new Date().toISOString() });
 });
 
 async function patientExists(patientId) {
@@ -44,14 +25,7 @@ async function patientExists(patientId) {
   }
 }
 
-const ALLOWED_TYPES = new Set([
-  'consultation',
-  'lab',
-  'imaging',
-  'prescription',
-  'discharge',
-  'vaccination',
-]);
+const ALLOWED_TYPES = new Set(['consultation', 'lab', 'imaging', 'prescription', 'discharge', 'vaccination']);
 
 function validateRecord(body) {
   const errors = [];
@@ -66,23 +40,15 @@ app.post('/records', async (req, res) => {
   try {
     const errors = validateRecord(req.body || {});
     if (errors.length) return res.status(400).json({ error: 'Validation failed', details: errors });
-
     const exists = await patientExists(req.body.patientId);
-    if (exists === false) {
-      return res.status(400).json({ error: 'Patient not found', patientId: req.body.patientId });
-    }
-
-    // Document reference only — binary PHI stored in encrypted S3 in AWS
+    if (exists === false) return res.status(400).json({ error: 'Patient not found', patientId: req.body.patientId });
     if (req.body.documentName) {
       req.body.documentKey = `patients/${req.body.patientId}/${Date.now()}-${req.body.documentName}`;
     }
-
     const record = await store.create(req.body);
     res.status(201).json({
       ...record,
-      storageHint: record.documentKey
-        ? `s3://${S3_BUCKET}/${record.documentKey}`
-        : null,
+      storageHint: record.documentKey ? `s3://${S3_BUCKET}/${record.documentKey}` : null,
     });
   } catch (err) {
     console.error(err);
@@ -145,9 +111,5 @@ app.delete('/records/:id', async (req, res) => {
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
 app.listen(PORT, () => {
-  console.log(JSON.stringify({
-    message: `${SERVICE} listening`,
-    port: PORT,
-    s3Bucket: S3_BUCKET,
-  }));
+  console.log(JSON.stringify({ message: `${SERVICE} listening`, port: PORT, s3Bucket: S3_BUCKET }));
 });

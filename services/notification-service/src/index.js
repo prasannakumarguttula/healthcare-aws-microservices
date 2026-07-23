@@ -7,45 +7,23 @@ const PORT = process.env.PORT || 3004;
 const SERVICE = process.env.SERVICE_NAME || 'notification-service';
 const SNS_TOPIC_ARN = process.env.SNS_TOPIC_ARN || '';
 const USE_LOCAL = process.env.USE_LOCAL_STORE === 'true' || !SNS_TOPIC_ARN;
-
 const notifications = [];
 
 app.use(cors());
 app.use(express.json());
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    console.log(JSON.stringify({
-      service: SERVICE,
-      method: req.method,
-      path: req.path,
-      status: res.statusCode,
-      ms: Date.now() - start,
-    }));
-  });
-  next();
-});
-
 app.get('/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    service: SERVICE,
-    mode: USE_LOCAL ? 'local-log' : 'sns',
-    timestamp: new Date().toISOString(),
-  });
+  res.json({ status: 'ok', service: SERVICE, mode: USE_LOCAL ? 'local-log' : 'sns', timestamp: new Date().toISOString() });
 });
 
 async function publishSns(message) {
   const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
   const client = new SNSClient({ region: process.env.AWS_REGION || 'us-east-1' });
-  await client.send(
-    new PublishCommand({
-      TopicArn: SNS_TOPIC_ARN,
-      Subject: message.subject || 'HealthCareHub Notification',
-      Message: JSON.stringify(message),
-    })
-  );
+  await client.send(new PublishCommand({
+    TopicArn: SNS_TOPIC_ARN,
+    Subject: message.subject || 'HealthCareHub Notification',
+    Message: JSON.stringify(message),
+  }));
 }
 
 app.post('/notifications', async (req, res) => {
@@ -54,19 +32,12 @@ app.post('/notifications', async (req, res) => {
     if (!body.type || !body.message) {
       return res.status(400).json({ error: 'type and message are required' });
     }
-
     const notification = {
-      id: uuidv4(),
-      type: body.type,
-      channel: body.channel || 'email',
-      recipient: body.recipient || null,
-      subject: body.subject || 'HealthCareHub',
-      message: body.message,
-      metadata: body.metadata || {},
-      status: 'queued',
+      id: uuidv4(), type: body.type, channel: body.channel || 'email',
+      recipient: body.recipient || null, subject: body.subject || 'HealthCareHub',
+      message: body.message, metadata: body.metadata || {}, status: 'queued',
       createdAt: new Date().toISOString(),
     };
-
     if (USE_LOCAL) {
       notification.status = 'logged';
       notifications.unshift(notification);
@@ -77,7 +48,6 @@ app.post('/notifications', async (req, res) => {
       notification.status = 'published';
       notifications.unshift(notification);
     }
-
     res.status(201).json(notification);
   } catch (err) {
     console.error(err);
@@ -100,9 +70,5 @@ app.get('/notifications/:id', (req, res) => {
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
 app.listen(PORT, () => {
-  console.log(JSON.stringify({
-    message: `${SERVICE} listening`,
-    port: PORT,
-    mode: USE_LOCAL ? 'local-log' : 'sns',
-  }));
+  console.log(JSON.stringify({ message: `${SERVICE} listening`, port: PORT, mode: USE_LOCAL ? 'local-log' : 'sns' }));
 });
