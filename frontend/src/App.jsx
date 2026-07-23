@@ -21,16 +21,10 @@ export default function App() {
   useEffect(() => {
     let alive = true;
     const ping = () =>
-      api
-        .health()
-        .then(() => alive && setApiOk(true))
-        .catch(() => alive && setApiOk(false));
+      api.health().then(() => alive && setApiOk(true)).catch(() => alive && setApiOk(false));
     ping();
     const id = setInterval(ping, 15000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
+    return () => { alive = false; clearInterval(id); };
   }, []);
 
   return (
@@ -43,20 +37,13 @@ export default function App() {
             <p>AWS Microservices Admin</p>
           </div>
         </div>
-
         <nav className="nav">
           {links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.end}
-              className={({ isActive }) => (isActive ? 'active' : undefined)}
-            >
+            <NavLink key={link.to} to={link.to} end={link.end} className={({ isActive }) => (isActive ? 'active' : undefined)}>
               {link.label}
             </NavLink>
           ))}
         </nav>
-
         <div className="sidebar-footer">
           <div>
             <span className={`status-dot ${apiOk ? 'ok' : 'bad'}`} />
@@ -65,7 +52,6 @@ export default function App() {
           <div style={{ marginTop: '0.4rem' }}>Local gateway :8080 · UI :3000</div>
         </div>
       </aside>
-
       <main className="main">
         <Routes>
           <Route path="/" element={<Dashboard />} />
