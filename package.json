@@ -1,0 +1,16 @@
+{
+  "name": "healthcare-aws-microservices",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HealthCareHub — AWS microservices platform for healthcare",
+  "scripts": {
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down -v",
+    "test:smoke": "node scripts/smoke-test.js",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

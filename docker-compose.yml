@@ -1,0 +1,128 @@
+services:
+  patient-service:
+    build:
+      context: ./services/patient-service
+      dockerfile: Dockerfile
+    container_name: hch-patient
+    environment:
+      PORT: 3001
+      NODE_ENV: development
+      SERVICE_NAME: patient-service
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      USE_LOCAL_STORE: "true"
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - healthcare-net
+
+  appointment-service:
+    build:
+      context: ./services/appointment-service
+      dockerfile: Dockerfile
+    container_name: hch-appointment
+    environment:
+      PORT: 3002
+      NODE_ENV: development
+      SERVICE_NAME: appointment-service
+      PATIENT_SERVICE_URL: http://patient-service:3001
+      NOTIFICATION_SERVICE_URL: http://notification-service:3004
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      USE_LOCAL_STORE: "true"
+    ports:
+      - "3002:3002"
+    depends_on:
+      patient-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - healthcare-net
+
+  records-service:
+    build:
+      context: ./services/records-service
+      dockerfile: Dockerfile
+    container_name: hch-records
+    environment:
+      PORT: 3003
+      NODE_ENV: development
+      SERVICE_NAME: records-service
+      PATIENT_SERVICE_URL: http://patient-service:3001
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      USE_LOCAL_STORE: "true"
+      S3_BUCKET: healthcare-records-local
+    ports:
+      - "3003:3003"
+    depends_on:
+      patient-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3003/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - healthcare-net
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: hch-notification
+    environment:
+      PORT: 3004
+      NODE_ENV: development
+      SERVICE_NAME: notification-service
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      USE_LOCAL_STORE: "true"
+      SNS_TOPIC_ARN: ""
+    ports:
+      - "3004:3004"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3004/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - healthcare-net
+
+  api-gateway:
+    image: nginx:1.27-alpine
+    container_name: hch-gateway
+    ports:
+      - "8080:80"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - patient-service
+      - appointment-service
+      - records-service
+      - notification-service
+    networks:
+      - healthcare-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hch-admin-ui
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - healthcare-net
+
+networks:
+  healthcare-net:
+    driver: bridge
