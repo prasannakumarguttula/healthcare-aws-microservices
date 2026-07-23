@@ -1,0 +1,123 @@
+name: CI/CD — HealthCareHub
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  PROJECT: healthcare-hub
+
+jobs:
+  lint-and-validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install patient-service deps
+        working-directory: services/patient-service
+        run: npm install
+
+      - name: Install remaining services
+        run: |
+          for s in appointment-service records-service notification-service; do
+            (cd "services/$s" && npm install)
+          done
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive infrastructure/terraform
+
+      - name: Terraform validate (dev)
+        working-directory: infrastructure/terraform/environments/dev
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+  build-images:
+    name: Build Docker images
+    runs-on: ubuntu-latest
+    needs: lint-and-validate
+    strategy:
+      matrix:
+        include:
+          - service: patient-service
+            context: ./services/patient-service
+          - service: appointment-service
+            context: ./services/appointment-service
+          - service: records-service
+            context: ./services/records-service
+          - service: notification-service
+            context: ./services/notification-service
+          - service: frontend
+            context: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.service }}
+        run: docker build -t ${{ matrix.service }}:ci ${{ matrix.context }}
+
+  deploy-dev:
+    name: Deploy to AWS (dev)
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push images
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          ENVIRONMENT: dev
+        run: |
+          for SVC in patient-service appointment-service records-service notification-service; do
+            IMAGE="$REGISTRY/$PROJECT/$ENVIRONMENT/$SVC:latest"
+            docker build -t "$IMAGE" "./services/$SVC"
+            docker push "$IMAGE"
+          done
+
+      - name: Force ECS deployment
+        env:
+          ENVIRONMENT: dev
+        run: |
+          CLUSTER="${PROJECT}-${ENVIRONMENT}"
+          for SVC in patient-service appointment-service records-service notification-service; do
+            aws ecs update-service \
+              --cluster "$CLUSTER" \
+              --service "$SVC" \
+              --force-new-deployment \
+              --region "$AWS_REGION" || echo "Service $SVC not ready yet"
+          done

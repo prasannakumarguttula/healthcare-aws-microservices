@@ -1,5 +1,8 @@
 const { v4: uuidv4 } = require('uuid');
 
+/**
+ * In-memory store for local Docker; DynamoDB adapter when USE_LOCAL_STORE=false.
+ */
 class LocalPatientStore {
   constructor() {
     this.patients = new Map();
@@ -63,13 +66,14 @@ class LocalPatientStore {
 class DynamoPatientStore {
   constructor() {
     const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-    const { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand } =
+    const { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand, UpdateCommand } =
       require('@aws-sdk/lib-dynamodb');
     this.doc = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION }));
     this.table = process.env.PATIENTS_TABLE || 'healthcare-patients';
     this.PutCommand = PutCommand;
     this.GetCommand = GetCommand;
     this.ScanCommand = ScanCommand;
+    this.UpdateCommand = UpdateCommand;
   }
 
   async create(data) {

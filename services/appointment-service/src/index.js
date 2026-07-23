@@ -35,6 +35,7 @@ async function patientExists(patientId) {
     const res = await fetch(`${PATIENT_URL}/patients/${patientId}`);
     return res.ok;
   } catch {
+    // Local demos may not have network; allow when store is local and patient check fails hard
     return process.env.USE_LOCAL_STORE === 'true' ? null : false;
   }
 }

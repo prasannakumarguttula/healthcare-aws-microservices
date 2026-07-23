@@ -32,11 +32,12 @@ function validatePatient(body) {
   const errors = [];
   if (!body.firstName || typeof body.firstName !== 'string') errors.push('firstName is required');
   if (!body.lastName || typeof body.lastName !== 'string') errors.push('lastName is required');
-  if (!body.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) errors.push('valid email is required');
+  if (!body.email || !/[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) errors.push('valid email is required');
   if (!body.dateOfBirth) errors.push('dateOfBirth is required (YYYY-MM-DD)');
   return errors;
 }
 
+// Create patient
 app.post('/patients', async (req, res) => {
   try {
     const errors = validatePatient(req.body || {});
@@ -49,6 +50,7 @@ app.post('/patients', async (req, res) => {
   }
 });
 
+// List patients
 app.get('/patients', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit || '50', 10), 100);
@@ -60,6 +62,7 @@ app.get('/patients', async (req, res) => {
   }
 });
 
+// Get patient by ID
 app.get('/patients/:id', async (req, res) => {
   try {
     const patient = await store.findById(req.params.id);
@@ -71,6 +74,7 @@ app.get('/patients/:id', async (req, res) => {
   }
 });
 
+// Update patient
 app.put('/patients/:id', async (req, res) => {
   try {
     const { id, mrn, createdAt, ...patch } = req.body || {};
@@ -83,6 +87,7 @@ app.put('/patients/:id', async (req, res) => {
   }
 });
 
+// Soft delete
 app.delete('/patients/:id', async (req, res) => {
   try {
     const updated = await store.softDelete(req.params.id);
