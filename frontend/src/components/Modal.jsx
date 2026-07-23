@@ -4,9 +4,7 @@ export default function Modal({ title, onClose, children }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <header>
           <h3>{title}</h3>
-          <button type="button" className="btn ghost" onClick={onClose}>
-            ✕
-          </button>
+          <button type="button" className="btn ghost" onClick={onClose}>✕</button>
         </header>
         {children}
       </div>

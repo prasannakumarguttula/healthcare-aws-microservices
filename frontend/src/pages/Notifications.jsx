@@ -28,57 +28,23 @@ export default function Notifications() {
   return (
     <div>
       <div className="page-header">
-        <div>
-          <h2>Notifications</h2>
-          <p>Event feed from notification-service (local log or AWS SNS).</p>
-        </div>
-        <button className="btn secondary" type="button" onClick={load}>
-          Refresh
-        </button>
+        <div><h2>Notifications</h2><p>Event feed from notification-service.</p></div>
+        <button className="btn secondary" type="button" onClick={load}>Refresh</button>
       </div>
-
       {error && <div className="error-banner">{error}</div>}
-
       <div className="panel">
-        <div className="panel-header">
-          <h3>Recent events</h3>
-          <span className="muted">Auto-refresh every 10s</span>
-        </div>
-        {loading && items.length === 0 ? (
-          <div className="empty">Loading…</div>
-        ) : items.length === 0 ? (
-          <div className="empty">
-            No notifications yet. Book or cancel an appointment to generate events.
-          </div>
+        <div className="panel-header"><h3>Recent events</h3><span className="muted">Auto-refresh 10s</span></div>
+        {loading && items.length === 0 ? <div className="empty">Loading…</div> : items.length === 0 ? (
+          <div className="empty">No notifications yet. Book an appointment to generate events.</div>
         ) : (
           <table>
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Channel</th>
-                <th>Subject / message</th>
-                <th>Status</th>
-                <th>Time</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Type</th><th>Subject</th><th>Status</th><th>Time</th></tr></thead>
             <tbody>
               {items.map((n) => (
                 <tr key={n.id}>
-                  <td>
-                    <span className="badge info">{n.type}</span>
-                  </td>
-                  <td>{n.channel}</td>
-                  <td>
-                    <strong>{n.subject}</strong>
-                    <div className="muted" style={{ fontSize: '0.82rem' }}>
-                      {n.message}
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`badge ${n.status === 'logged' || n.status === 'published' ? 'success' : 'warning'}`}>
-                      {n.status}
-                    </span>
-                  </td>
+                  <td><span className="badge info">{n.type}</span></td>
+                  <td><strong>{n.subject}</strong><div className="muted">{n.message}</div></td>
+                  <td><span className="badge success">{n.status}</span></td>
                   <td className="mono">{new Date(n.createdAt).toLocaleString()}</td>
                 </tr>
               ))}
